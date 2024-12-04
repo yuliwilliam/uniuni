@@ -1,0 +1,278 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Excel File Processor</title>
+    <style>
+        body {
+            font-family: 'Arial', sans-serif;
+            background-color: #f7f7f7;
+            color: #333;
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+        }
+
+        .container {
+            background-color: #ffffff;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+            width: 100%;
+            max-width: 600px;
+            text-align: center;
+        }
+
+        #drop-area {
+            border: 2px dashed #007bff;
+            border-radius: 10px;
+            padding: 30px;
+            color: #007bff;
+            transition: border-color 0.3s, color 0.3s;
+            cursor: pointer;
+        }
+
+        #drop-area.hover {
+            border-color: #0056b3;
+            color: #0056b3;
+        }
+
+        #file-list {
+            list-style: none;
+            padding: 0;
+            margin: 20px 0;
+            font-size: 14px;
+            color: #555;
+        }
+
+        #file-list li {
+            margin: 10px 0;
+        }
+
+        #fileElem {
+            display: none;
+        }
+
+        .button {
+            display: inline-block;
+            margin-top: 20px;
+            padding: 10px 20px;
+            background-color: #007bff;
+            color: #ffffff;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            text-decoration: none;
+            font-size: 16px;
+            transition: background-color 0.3s;
+        }
+
+        .button:hover {
+            background-color: #0056b3;
+        }
+
+        #download-link {
+            margin-top: 30px;
+        }
+
+        #download-link a {
+            text-decoration: none;
+            color: #007bff;
+            font-weight: bold;
+        }
+
+        #download-link a:hover {
+            color: #0056b3;
+        }
+
+        #download-link br {
+            margin-bottom: 10px;
+        }
+
+        /* Custom dialog styling */
+        #custom-dialog {
+            display: none;
+            position: fixed;
+            left: 50%;
+            top: 50%;
+            transform: translate(-50%, -50%);
+            width: 600px; /* Set this to the image's width */
+            height: 500px; /* Set this to the image's height */
+            background-image: url('/static/IMG_9031.jpeg'); /* Your background image */
+            background-blend-mode: lighten; /* Blend the background image with a light color */
+            background-color: rgba(255, 255, 255, 0.8); /* Lighten the background image */
+            background-size: cover;
+            background-position: center;
+            padding: 0;
+            text-align: center;
+            z-index: 1000;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        }
+
+        #custom-dialog h3 {
+            color: #333;
+            margin-bottom: 15px;
+        }
+
+        #custom-dialog p {
+            color: #555;
+            font-size: 14px;
+            margin-bottom: 20px;
+        }
+
+        #custom-dialog .button {
+            background-color: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+
+        #custom-dialog .button:hover {
+            background-color: #0056b3;
+        }
+
+        #dialog-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.5);
+            z-index: 999;
+        }
+    </style>
+</head>
+<body>
+<div class="container">
+    <div id="drop-area">
+        <h2>Drag & Drop Files Here</h2>
+        <p>or</p>
+        <label class="button" for="fileElem">Select Files</label>
+        <input type="file" id="fileElem" multiple accept=".xlsx">
+    </div>
+
+    <ul id="file-list"></ul>
+
+    <h2>Download All Split Files</h2>
+    <div id="download-link"></div>
+</div>
+
+<!-- Custom dialog HTML -->
+<div id="dialog-overlay"></div>
+<div id="custom-dialog">
+    <h3></h3>
+    <p></p>
+    <h6></h6>
+    <p></p>
+    <button class="button" id="close-dialog">ok</button>
+</div>
+
+<script>
+    let dropArea = document.getElementById('drop-area');
+    let fileInput = document.getElementById('fileElem');
+    let fileList = document.getElementById('file-list');
+    let downloadLink = document.getElementById('download-link');
+
+    let dialogOverlay = document.getElementById('dialog-overlay');
+    let customDialog = document.getElementById('custom-dialog');
+    let closeDialogButton = document.getElementById('close-dialog');
+
+    closeDialogButton.addEventListener('click', function () {
+        closeDialog();
+    });
+
+    function openDialog() {
+        dialogOverlay.style.display = 'block';
+        customDialog.style.display = 'block';
+    }
+
+    function closeDialog() {
+        dialogOverlay.style.display = 'none';
+        customDialog.style.display = 'none';
+        sessionStorage.setItem('dialogShown2024-10-23', 'true'); // Mark that dialog has been shown
+    }
+
+    ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+        dropArea.addEventListener(eventName, preventDefaults, false)
+    });
+
+    ['dragenter', 'dragover'].forEach(eventName => {
+        dropArea.addEventListener(eventName, () => dropArea.classList.add('hover'), false)
+    });
+
+    ['dragleave', 'drop'].forEach(eventName => {
+        dropArea.addEventListener(eventName, () => dropArea.classList.remove('hover'), false)
+    });
+
+    dropArea.addEventListener('drop', handleDrop, false);
+    fileInput.addEventListener('change', handleFiles, false);
+
+    function preventDefaults(e) {
+        e.preventDefault();
+        e.stopPropagation();
+    }
+
+    function handleDrop(e) {
+        let dt = e.dataTransfer;
+        let files = dt.files;
+        handleFiles({target: {files: files}});
+    }
+
+    function handleFiles(e) {
+        let files = e.target.files;
+        [...files].forEach(uploadFile);
+        [...files].forEach(previewFile);
+    }
+
+    function uploadFile(file) {
+        let url = '/upload';
+        let formData = new FormData();
+        formData.append('files[]', file);
+
+        fetch(url, {
+            method: 'POST',
+            body: formData
+        }).then(response => response.json())
+            .then(data => {
+                for (let zip_file_name of data.zip_files) {
+                    let zipLink = document.createElement('a');
+                    zipLink.href = `/download/${zip_file_name}`;
+                    zipLink.textContent = zip_file_name.split("<<-->>")[1];
+
+                    zipLink.addEventListener('click', function (e) {
+                        const currentDate = new Date();
+                        const cutoffDate = new Date('2024-10-23');
+                        const dialogShown = sessionStorage.getItem('dialogShown2024-10-23');
+
+                        if (currentDate < cutoffDate && !dialogShown) {
+                            e.preventDefault(); // Prevent download
+                            openDialog(); // Open custom dialog
+                        }
+                    });
+
+                    downloadLink.appendChild(zipLink);
+                    downloadLink.appendChild(document.createElement('br'));
+                }
+            })
+            .catch(() => {
+                console.log('Upload failed');
+            });
+    }
+
+    function previewFile(file) {
+        let li = document.createElement('li');
+        li.textContent = file.name;
+        fileList.appendChild(li);
+    }
+</script>
+</body>
+</html>
